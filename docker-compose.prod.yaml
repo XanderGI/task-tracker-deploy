@@ -1,0 +1,130 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: postgres_db
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:4.4.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.33
+    ports:
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 100
+      MP_DATABASE: /data/mailpit.db
+      TZ: Europe/Moscow
+    volumes:
+      - mailpit_data:/data
+    restart: unless-stopped
+
+  backend:
+    logging: *default-logging
+    image: xandergi/task-tracker-backend:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres_db
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET_PHRASE: ${JWT_SECRET_PHRASE:?JWT_SECRET_PHRASE must be set in .env}
+      INTERNAL_JWT_SECRET_PHRASE: ${INTERNAL_JWT_SECRET_PHRASE:?INTERNAL_JWT_SECRET_PHRASE must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    logging: *default-logging
+    image: xandergi/task-tracker-scheduler:latest
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      BACKEND_BASE_URL: http://backend:8080
+      INTERNAL_JWT_SECRET_PHRASE: ${INTERNAL_JWT_SECRET_PHRASE:?INTERNAL_JWT_SECRET_PHRASE must be set in .env}
+      REPORT_CRON: ${REPORT_CRON:-0 0 0 * * *}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  email-sender:
+    logging: *default-logging
+    image: xandergi/task-tracker-email-sender:latest
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  summarization:
+    logging: *default-logging
+    image: xandergi/task-tracker-summarization:latest
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GEMINI_MODEL: ${GEMINI_MODEL:?GEMINI_MODEL must be set in .env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?GEMINI_API_KEY must be set in .env}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    logging: *default-logging
+    image: pnrplahaed/task-tracker-frontend:2150a0c6fcca50ba35fa31968b1f5fbdf2b42f78
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 64m
+
+volumes:
+  postgres_data:
+  kafka_data:
+  mailpit_data:
