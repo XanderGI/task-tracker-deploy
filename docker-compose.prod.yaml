@@ -115,14 +115,13 @@ services:
 
   frontend:
     logging: *default-logging
-    image: pnrplahaed/task-tracker-frontend:2150a0c6fcca50ba35fa31968b1f5fbdf2b42f78
+    image: xandergi/task-tracker-frontend:74e0548b62ab1550fd6e2fdbb748ef1454e0991d
     ports:
       - "8081:80"
     depends_on:
       backend:
         condition: service_started
     restart: unless-stopped
-    mem_limit: 64m
 
 volumes:
   postgres_data:
