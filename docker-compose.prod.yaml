@@ -117,7 +117,7 @@ services:
     logging: *default-logging
     image: xandergi/task-tracker-frontend:0b1691ad74b23f8b0055b878983f2e94adc6e5c5
     ports:
-      - "8081:80"
+      - "80:80"
     depends_on:
       backend:
         condition: service_started
