@@ -57,7 +57,7 @@ services:
 
   backend:
     logging: *default-logging
-    image: xandergi/task-tracker-backend:latest
+    image: xandergi/task-tracker-backend:b09357fce6071034caa020ced71166bf8a6dda5e
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres_db
       DB_USERNAME: ${DB_USERNAME:-postgres}
@@ -74,7 +74,7 @@ services:
 
   scheduler:
     logging: *default-logging
-    image: xandergi/task-tracker-scheduler:latest
+    image: xandergi/task-tracker-scheduler:51419a0919800ccaf50494b104a0cff8a54f7ae8
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       BACKEND_BASE_URL: http://backend:8080
@@ -89,7 +89,7 @@ services:
 
   email-sender:
     logging: *default-logging
-    image: xandergi/task-tracker-email-sender:latest
+    image: xandergi/task-tracker-email-sender:258f6ac3c300622f42e53f8cee80ffa499d74b37
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_MAIL_HOST: mailpit
@@ -115,7 +115,7 @@ services:
 
   frontend:
     logging: *default-logging
-    image: xandergi/task-tracker-frontend:74e0548b62ab1550fd6e2fdbb748ef1454e0991d
+    image: xandergi/task-tracker-frontend:0b1691ad74b23f8b0055b878983f2e94adc6e5c5
     ports:
       - "8081:80"
     depends_on:
