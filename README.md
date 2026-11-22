@@ -40,3 +40,14 @@ docker compose -f docker-compose.dev.yaml up -d
 1. Запустите backend. Для работы только с REST API этого достаточно. [Настройки backend](https://github.com/XanderGI/task-tracker-backend#запуск).
 2. Для проверки писем запустите email-sender. Для проверки ежедневного отчёта запустите также summarization, затем scheduler. У backend и scheduler должен быть одинаковый `INTERNAL_JWT_SECRET_PHRASE`. Для быстрого прогона задайте `REPORT_CRON=0 * * * * *` в окружении scheduler. [Email Sender](https://github.com/XanderGI/task-tracker-email-sender#запуск), [Summarization](https://github.com/XanderGI/task-tracker-summarization#запуск), [Scheduler](https://github.com/XanderGI/task-tracker-scheduler#запуск).
 3. Для работы через браузер запустите локальный Nginx из репозитория frontend. [Локальный запуск frontend](https://github.com/XanderGI/task-tracker-frontend#локальная-разработка).
+
+## Почта через SMTP.BZ
+
+На VPS добавьте в `.env` логин `SMTP_BZ_USERNAME` и пароль `SMTP_BZ_PASSWORD` из вкладки SMTP в кабинете провайдера. `docker-compose.smtp.yaml` переключает `email-sender` на `connect.smtp.bz:465` с TLS и задаёт адрес отправителя `noreply@tracker-task.xyz`.
+
+Проверьте конфигурацию и пересоздайте `email-sender` в уже запущенном стеке:
+
+```bash
+docker compose -f docker-compose.prod.yaml -f docker-compose.smtp.yaml config --quiet
+docker compose -f docker-compose.prod.yaml -f docker-compose.smtp.yaml up -d
+```
